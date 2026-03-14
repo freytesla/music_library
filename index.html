@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>音乐库</title>
 <style>
-/* 1. 补充缺失的CSS变量定义（核心修复） */
 :root {
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --color-background-primary: #ffffff;
@@ -20,7 +19,6 @@
   --border-radius-lg: 8px;
 }
 
-/* 原有样式保留 + 补充修复 */
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: var(--font-sans); background: #f2f3f5; padding: 0 1rem; }
 .wrap { padding: 1.5rem 0; max-width: 1200px; margin: 0 auto; background: white; padding: 1.5rem; border-radius: var(--border-radius-lg); box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
@@ -50,7 +48,7 @@ input[type=text], select, textarea { font-family: var(--font-sans); font-size: 1
 .badge-genre { background: #E6F1FB; color: #0C447C; }
 .badge-mood { background: #E1F5EE; color: #085041; }
 .badge-inst { background: #FAEEDA; color: #633806; }
-/* 修复收藏按钮样式 + 添加入口 */
+/* 收藏按钮样式 + 添加入口 */
 .fav { font-size: 14px; color: var(--color-text-tertiary); cursor: pointer; user-select: none; text-align: center; }
 .fav.liked { color: #D4537E; }
 .track-note { font-size: 12px; color: var(--color-text-tertiary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -75,7 +73,7 @@ input[type=text], select, textarea { font-family: var(--font-sans); font-size: 1
 .del-btn { font-size: 14px; color: var(--color-text-tertiary); cursor: pointer; opacity: 0; transition: opacity 0.1s; text-align: center; }
 .track-row:hover .del-btn { opacity: 1; }
 
-/* 响应式适配（补充） */
+/* 响应式适配 */
 @media (max-width: 768px) {
   .track-row { grid-template-columns: 1.5fr 1fr 50px 1fr 1fr 1fr 1.5fr 40px; padding: 10px 8px; }
   .stats { grid-template-columns: repeat(2, 1fr); }
@@ -84,7 +82,7 @@ input[type=text], select, textarea { font-family: var(--font-sans); font-size: 1
   .actions { width: 100%; justify-content: space-between; }
 }
 
-/* 表单验证提示（补充） */
+/* 表单验证提示 */
 .form-input.error { border-color: #ff4d4f; }
 .error-tip { font-size: 11px; color: #ff4d4f; margin-top: 2px; display: none; }
 .error-tip.show { display: block; }
@@ -123,7 +121,7 @@ input[type=text], select, textarea { font-family: var(--font-sans); font-size: 1
       <span class="col-label">情绪</span>
       <span class="col-label">核心乐器</span>
       <span class="col-label">喜欢的点</span>
-      <span class="col-label">操作</span> <!-- 修复表头文字 -->
+      <span class="col-label">操作</span>
     </div>
     <div class="empty" id="emptyMsg">还没有曲目，点击「+ 添加」开始吧</div>
   </div>
@@ -172,25 +170,28 @@ input[type=text], select, textarea { font-family: var(--font-sans); font-size: 1
 </div>
 
 <script>
+// 核心：从localStorage读取数据，无数据则用演示数据
 let tracks = JSON.parse(localStorage.getItem('musiclib') || '[]');
 let editingId = null;
 let currentFilter = 'all';
 
 const DEMO = [
-  { id: 1, name: "Autumn Leaves", artist: "Bill Evans", bpm: 120, genre: "Jazz", mood: "忧郁", inst: "钢琴、贝斯", note: "和弦进行太美了，bass line极具层次", fav: true },
-  { id: 2, name: "Lofi Study Beat", artist: "Chilled Cow", bpm: 75, genre: "Lo-Fi", mood: "放松", inst: "采样、鼓机", note: "循环部分有种温暖的颗粒感", fav: false },
-  { id: 3, name: "Blinding Lights", artist: "The Weeknd", bpm: 171, genre: "Synthpop", mood: "亢奋", inst: "合成器", note: "80年代复古感与现代制作的完美融合", fav: true },
+  { id: 1, name: "ghost town", artist: "JVKE", bpm: 82, genre: "Bedroom Pop", mood: "孤寂", inst: "钢琴", note: "氛围感", fav: true },
+  { id: 2, name: "Notion", artist: "The Rare Occasions", bpm: 128, genre: "Rock", mood: "清醒", inst: "吉他", note: "抓耳", fav: false },
+  { id: 3, name: "i was only temporary 2 u", artist: "my head is empty", bpm: 120, genre: "电子", mood: "孤寂", inst: "合成器", note: "有种蓝调时间的感觉", fav: true },
 ];
 
-// 修复：仅当本地无数据时才使用演示数据（避免重复加载）
+// 首次无数据时加载演示数据并自动保存
 if (tracks.length === 0) {
   tracks = DEMO;
-  save(); // 首次加载时保存演示数据到本地
+  saveToLocalStorage();
 }
 
-function save() { 
+// 封装自动保存到localStorage的函数
+function saveToLocalStorage() { 
   try { 
     localStorage.setItem('musiclib', JSON.stringify(tracks)); 
+    console.log('数据已自动保存到localStorage');
   } catch(e) {
     console.warn('本地存储保存失败:', e);
   }
@@ -244,7 +245,6 @@ function renderTracks() {
     list.forEach(t => {
       const row = document.createElement('div');
       row.className = 'track-row';
-      // 修复：添加收藏按钮、完善删除按钮阻止冒泡
       row.innerHTML = `
         <span class="track-name">${t.name}</span>
         <span class="track-artist">${t.artist || '—'}</span>
@@ -258,7 +258,7 @@ function renderTracks() {
           <span class="del-btn" onclick="deleteTrack(${t.id}, event)">✕</span>
         </span>
       `;
-      // 修复：点击行编辑时排除收藏/删除按钮
+      // 点击行编辑（排除收藏/删除按钮）
       row.onclick = (e) => { 
         if (!e.target.classList.contains('del-btn') && !e.target.classList.contains('fav')) {
           editTrack(t.id);
@@ -281,19 +281,19 @@ function updateStats() {
   document.getElementById('s-favs').textContent = tracks.filter(t=>t.fav).length;
 }
 
-// 新增：收藏切换功能
+// 收藏切换 - 自动保存
 function toggleFav(id, e) {
   e.stopPropagation();
   const idx = tracks.findIndex(t => t.id === id);
   if (idx > -1) {
     tracks[idx].fav = !tracks[idx].fav;
-    save();
+    saveToLocalStorage(); // 自动保存
     renderTracks();
   }
 }
 
 function openModal(id) {
-  // 清除之前的验证提示
+  // 清除验证提示
   document.querySelectorAll('.error-tip').forEach(tip => tip.classList.remove('show'));
   document.querySelectorAll('.form-input').forEach(input => input.classList.remove('error'));
   
@@ -311,7 +311,7 @@ function openModal(id) {
 function editTrack(id) { openModal(id); }
 
 function closeModal() { 
-  // 关闭时清除验证提示
+  // 清除验证提示
   document.querySelectorAll('.error-tip').forEach(tip => tip.classList.remove('show'));
   document.querySelectorAll('.form-input').forEach(input => input.classList.remove('error'));
   document.getElementById('modalBg').classList.remove('open'); 
@@ -319,15 +319,16 @@ function closeModal() {
 
 function closeModalBg(e) { if (e.target.id === 'modalBg') closeModal(); }
 
+// 保存曲目 - 自动保存
 function saveTrack() {
-  // 完善表单验证
+  // 表单验证
   const nameEl = document.getElementById('f-name');
   const artistEl = document.getElementById('f-artist');
   const name = nameEl.value.trim();
   const artist = artistEl.value.trim();
   let isValid = true;
 
-  // 清空之前的验证提示
+  // 清空验证提示
   document.querySelectorAll('.error-tip').forEach(tip => tip.classList.remove('show'));
   document.querySelectorAll('.form-input').forEach(input => input.classList.remove('error'));
 
@@ -370,22 +371,22 @@ function saveTrack() {
     tracks.push(data);
   }
   
-  save(); 
+  saveToLocalStorage(); // 自动保存
   closeModal(); 
   renderTracks();
 }
 
+// 删除曲目 - 自动保存
 function deleteTrack(id, e) {
   e.stopPropagation();
-  // 确认删除
   if (confirm('确定要删除这首曲目吗？')) {
     tracks = tracks.filter(t=>t.id!==id);
-    save(); 
+    saveToLocalStorage(); // 自动保存
     renderTracks();
   }
 }
 
-// 页面加载完成后渲染（确保DOM加载完毕）
+// 页面加载完成后渲染
 document.addEventListener('DOMContentLoaded', function() {
   renderTracks();
 });
