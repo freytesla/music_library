@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>音乐库</title>
+<style>
+/* 1. 补充缺失的CSS变量定义（核心修复） */
+:root {
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --color-background-primary: #ffffff;
+  --color-background-secondary: #f7f8fa;
+  --color-text-primary: #1d2129;
+  --color-text-secondary: #4e5969;
+  --color-text-tertiary: #86909c;
+  --color-border-primary: #c9cdD4;
+  --color-border-secondary: #86909c;
+  --color-border-tertiary: #e5e6eb;
+  --border-radius-md: 6px;
+  --border-radius-lg: 8px;
+}
+
+/* 原有样式保留 + 补充修复 */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font-sans); background: #f2f3f5; padding: 0 1rem; }
+.wrap { padding: 1.5rem 0; max-width: 1200px; margin: 0 auto; background: white; padding: 1.5rem; border-radius: var(--border-radius-lg); box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+.top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; gap: 12px; flex-wrap: wrap; }
+.title { font-size: 18px; font-weight: 500; color: var(--color-text-primary); letter-spacing: -0.3px; }
+.subtitle { font-size: 13px; color: var(--color-text-secondary); margin-top: 2px; }
+.actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+input[type=text], select, textarea { font-family: var(--font-sans); font-size: 13px; }
+.search { background: var(--color-background-secondary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); padding: 7px 12px; font-size: 13px; color: var(--color-text-primary); width: 200px; outline: none; }
+.search:focus { border-color: var(--color-border-secondary); }
+.btn-add { background: var(--color-text-primary); color: var(--color-background-primary); border: none; border-radius: var(--border-radius-md); padding: 7px 14px; font-size: 13px; font-weight: 500; cursor: pointer; }
+.btn-add:hover { opacity: 0.85; }
+.filters { display: flex; gap: 8px; margin-bottom: 1.5rem; flex-wrap: wrap; }
+.filter-btn { background: transparent; border: 0.5px solid var(--color-border-tertiary); border-radius: 20px; padding: 5px 14px; font-size: 12px; color: var(--color-text-secondary); cursor: pointer; transition: all 0.15s; }
+.filter-btn.active { background: var(--color-text-primary); color: var(--color-background-primary); border-color: var(--color-text-primary); }
+.track-grid { display: flex; flex-direction: column; gap: 0; border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); overflow: hidden; }
+.track-row { display: grid; grid-template-columns: 2fr 1.5fr 60px 1.2fr 1.2fr 1.5fr 2fr 40px; gap: 12px; align-items: center; padding: 12px 16px; background: var(--color-background-primary); border-bottom: 0.5px solid var(--color-border-tertiary); transition: background 0.1s; cursor: pointer; }
+.track-row:last-child { border-bottom: none; }
+.track-row:hover { background: var(--color-background-secondary); }
+.track-row.header { background: var(--color-background-secondary); cursor: default; }
+.track-row.header:hover { background: var(--color-background-secondary); }
+.col-label { font-size: 11px; font-weight: 500; color: var(--color-text-tertiary); text-transform: uppercase; letter-spacing: 0.5px; }
+.track-name { font-size: 14px; font-weight: 500; color: var(--color-text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.track-artist { font-size: 13px; color: var(--color-text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bpm { font-size: 13px; color: var(--color-text-secondary); font-variant-numeric: tabular-nums; }
+.badge { display: inline-block; font-size: 11px; padding: 3px 8px; border-radius: 20px; font-weight: 500; white-space: nowrap; }
+.badge-genre { background: #E6F1FB; color: #0C447C; }
+.badge-mood { background: #E1F5EE; color: #085041; }
+.badge-inst { background: #FAEEDA; color: #633806; }
+/* 修复收藏按钮样式 + 添加入口 */
+.fav { font-size: 14px; color: var(--color-text-tertiary); cursor: pointer; user-select: none; text-align: center; }
+.fav.liked { color: #D4537E; }
+.track-note { font-size: 12px; color: var(--color-text-tertiary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.empty { text-align: center; padding: 3rem; color: var(--color-text-tertiary); font-size: 14px; }
+.modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.35); display: flex; align-items: center; justify-content: center; z-index: 100; display: none; }
+.modal-bg.open { display: flex; }
+.modal { background: var(--color-background-primary); border: 0.5px solid var(--color-border-secondary); border-radius: var(--border-radius-lg); padding: 1.5rem; width: 540px; max-width: 95vw; max-height: 85vh; overflow-y: auto; }
+.modal-title { font-size: 16px; font-weight: 500; margin-bottom: 1.25rem; color: var(--color-text-primary); }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.form-group { display: flex; flex-direction: column; gap: 5px; }
+.form-group.full { grid-column: 1 / -1; }
+.form-label { font-size: 12px; color: var(--color-text-secondary); font-weight: 500; }
+.form-input { background: var(--color-background-secondary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); padding: 8px 10px; font-size: 13px; color: var(--color-text-primary); outline: none; }
+.form-input:focus { border-color: var(--color-border-primary); }
+.form-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 1.25rem; }
+.btn-cancel { background: transparent; border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); padding: 7px 14px; font-size: 13px; color: var(--color-text-secondary); cursor: pointer; }
+.btn-save { background: var(--color-text-primary); color: var(--color-background-primary); border: none; border-radius: var(--border-radius-md); padding: 7px 14px; font-size: 13px; font-weight: 500; cursor: pointer; }
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 1.5rem; }
+.stat-card { background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 12px 14px; }
+.stat-val { font-size: 22px; font-weight: 500; color: var(--color-text-primary); }
+.stat-lbl { font-size: 11px; color: var(--color-text-tertiary); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.4px; }
+.del-btn { font-size: 14px; color: var(--color-text-tertiary); cursor: pointer; opacity: 0; transition: opacity 0.1s; text-align: center; }
+.track-row:hover .del-btn { opacity: 1; }
+
+/* 响应式适配（补充） */
+@media (max-width: 768px) {
+  .track-row { grid-template-columns: 1.5fr 1fr 50px 1fr 1fr 1fr 1.5fr 40px; padding: 10px 8px; }
+  .stats { grid-template-columns: repeat(2, 1fr); }
+  .search { width: 150px; }
+  .top { flex-direction: column; align-items: flex-start; }
+  .actions { width: 100%; justify-content: space-between; }
+}
+
+/* 表单验证提示（补充） */
+.form-input.error { border-color: #ff4d4f; }
+.error-tip { font-size: 11px; color: #ff4d4f; margin-top: 2px; display: none; }
+.error-tip.show { display: block; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div>
+      <div class="title">音乐库</div>
+      <div class="subtitle" id="subtitle-count">0 首曲目</div>
+    </div>
+    <div class="actions">
+      <input class="search" type="text" placeholder="搜索歌名、歌手..." id="searchInput" oninput="renderTracks()">
+      <button class="btn-add" onclick="openModal()">+ 添加</button>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat-card"><div class="stat-val" id="s-total">0</div><div class="stat-lbl">曲目总数</div></div>
+    <div class="stat-card"><div class="stat-val" id="s-bpm">—</div><div class="stat-lbl">平均 BPM</div></div>
+    <div class="stat-card"><div class="stat-val" id="s-genres">0</div><div class="stat-lbl">风格种类</div></div>
+    <div class="stat-card"><div class="stat-val" id="s-favs">0</div><div class="stat-lbl">我的最爱</div></div>
+  </div>
+
+  <div class="filters" id="filterBar">
+    <button class="filter-btn active" onclick="setFilter('all', this)">全部</button>
+  </div>
+
+  <div class="track-grid" id="trackGrid">
+    <div class="track-row header">
+      <span class="col-label">歌名</span>
+      <span class="col-label">歌手</span>
+      <span class="col-label">BPM</span>
+      <span class="col-label">主风格</span>
+      <span class="col-label">情绪</span>
+      <span class="col-label">核心乐器</span>
+      <span class="col-label">喜欢的点</span>
+      <span class="col-label">操作</span> <!-- 修复表头文字 -->
+    </div>
+    <div class="empty" id="emptyMsg">还没有曲目，点击「+ 添加」开始吧</div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modalBg" onclick="closeModalBg(event)">
+  <div class="modal">
+    <div class="modal-title" id="modalTitle">添加曲目</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">歌名 *</label>
+        <input class="form-input" id="f-name" placeholder="歌名">
+        <div class="error-tip" id="tip-name">请输入歌名</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">歌手 *</label>
+        <input class="form-input" id="f-artist" placeholder="歌手">
+        <div class="error-tip" id="tip-artist">请输入歌手</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">BPM</label>
+        <input class="form-input" id="f-bpm" type="number" placeholder="120" min="1" max="300">
+      </div>
+      <div class="form-group">
+        <label class="form-label">主风格</label>
+        <input class="form-input" id="f-genre" placeholder="例：Lo-Fi、Jazz、Pop">
+      </div>
+      <div class="form-group">
+        <label class="form-label">情绪</label>
+        <input class="form-input" id="f-mood" placeholder="例：放松、治愈、亢奋">
+      </div>
+      <div class="form-group">
+        <label class="form-label">核心乐器</label>
+        <input class="form-input" id="f-inst" placeholder="例：钢琴、吉他">
+      </div>
+      <div class="form-group full">
+        <label class="form-label">你喜欢的点</label>
+        <textarea class="form-input" id="f-note" rows="2" placeholder="记录让你印象深刻的地方..."></textarea>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn-cancel" onclick="closeModal()">取消</button>
+      <button class="btn-save" onclick="saveTrack()">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let tracks = JSON.parse(localStorage.getItem('musiclib') || '[]');
+let editingId = null;
+let currentFilter = 'all';
+
+const DEMO = [
+  { id: 1, name: "Autumn Leaves", artist: "Bill Evans", bpm: 120, genre: "Jazz", mood: "忧郁", inst: "钢琴、贝斯", note: "和弦进行太美了，bass line极具层次", fav: true },
+  { id: 2, name: "Lofi Study Beat", artist: "Chilled Cow", bpm: 75, genre: "Lo-Fi", mood: "放松", inst: "采样、鼓机", note: "循环部分有种温暖的颗粒感", fav: false },
+  { id: 3, name: "Blinding Lights", artist: "The Weeknd", bpm: 171, genre: "Synthpop", mood: "亢奋", inst: "合成器", note: "80年代复古感与现代制作的完美融合", fav: true },
+];
+
+// 修复：仅当本地无数据时才使用演示数据（避免重复加载）
+if (tracks.length === 0) {
+  tracks = DEMO;
+  save(); // 首次加载时保存演示数据到本地
+}
+
+function save() { 
+  try { 
+    localStorage.setItem('musiclib', JSON.stringify(tracks)); 
+  } catch(e) {
+    console.warn('本地存储保存失败:', e);
+  }
+}
+
+function setFilter(f, el) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  renderTracks();
+}
+
+function buildFilters() {
+  const genres = [...new Set(tracks.map(t => t.genre).filter(Boolean))];
+  const bar = document.getElementById('filterBar');
+  bar.innerHTML = '<button class="filter-btn active" onclick="setFilter(\'all\', this)">全部</button>';
+  genres.forEach(g => {
+    const b = document.createElement('button');
+    b.className = 'filter-btn';
+    b.textContent = g;
+    b.onclick = function() { setFilter(g, this); };
+    bar.appendChild(b);
+  });
+  document.querySelectorAll('.filter-btn').forEach(b => {
+    if (b.textContent === currentFilter || (currentFilter === 'all' && b.textContent === '全部')) {
+      b.classList.add('active');
+    }
+  });
+}
+
+function renderTracks() {
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  let list = tracks.filter(t => {
+    const match = !q || t.name.toLowerCase().includes(q) || t.artist.toLowerCase().includes(q);
+    const genreMatch = currentFilter === 'all' || t.genre === currentFilter;
+    return match && genreMatch;
+  });
+
+  const grid = document.getElementById('trackGrid');
+  const empty = document.getElementById('emptyMsg');
+  const rows = grid.querySelectorAll('.track-row:not(.header)');
+  rows.forEach(r => r.remove());
+  if (empty) empty.remove();
+
+  if (list.length === 0) {
+    const d = document.createElement('div');
+    d.className = 'empty'; d.id = 'emptyMsg';
+    d.textContent = tracks.length === 0 ? '还没有曲目，点击「+ 添加」开始吧' : '没有匹配的曲目';
+    grid.appendChild(d);
+  } else {
+    list.forEach(t => {
+      const row = document.createElement('div');
+      row.className = 'track-row';
+      // 修复：添加收藏按钮、完善删除按钮阻止冒泡
+      row.innerHTML = `
+        <span class="track-name">${t.name}</span>
+        <span class="track-artist">${t.artist || '—'}</span>
+        <span class="bpm">${t.bpm || '—'}</span>
+        <span>${t.genre ? '<span class="badge badge-genre">'+t.genre+'</span>' : '—'}</span>
+        <span>${t.mood ? '<span class="badge badge-mood">'+t.mood+'</span>' : '—'}</span>
+        <span>${t.inst ? '<span class="badge badge-inst">'+t.inst+'</span>' : '—'}</span>
+        <span class="track-note">${t.note || '—'}</span>
+        <span style="display: flex; gap: 8px; justify-content: center; align-items: center;">
+          <span class="fav ${t.fav ? 'liked' : ''}" onclick="toggleFav(${t.id}, event)">♥</span>
+          <span class="del-btn" onclick="deleteTrack(${t.id}, event)">✕</span>
+        </span>
+      `;
+      // 修复：点击行编辑时排除收藏/删除按钮
+      row.onclick = (e) => { 
+        if (!e.target.classList.contains('del-btn') && !e.target.classList.contains('fav')) {
+          editTrack(t.id);
+        }
+      };
+      grid.appendChild(row);
+    });
+  }
+
+  document.getElementById('subtitle-count').textContent = tracks.length + ' 首曲目';
+  updateStats();
+  buildFilters();
+}
+
+function updateStats() {
+  document.getElementById('s-total').textContent = tracks.length;
+  const bpms = tracks.map(t => t.bpm).filter(Boolean);
+  document.getElementById('s-bpm').textContent = bpms.length ? Math.round(bpms.reduce((a,b)=>a+b,0)/bpms.length) : '—';
+  document.getElementById('s-genres').textContent = new Set(tracks.map(t=>t.genre).filter(Boolean)).size;
+  document.getElementById('s-favs').textContent = tracks.filter(t=>t.fav).length;
+}
+
+// 新增：收藏切换功能
+function toggleFav(id, e) {
+  e.stopPropagation();
+  const idx = tracks.findIndex(t => t.id === id);
+  if (idx > -1) {
+    tracks[idx].fav = !tracks[idx].fav;
+    save();
+    renderTracks();
+  }
+}
+
+function openModal(id) {
+  // 清除之前的验证提示
+  document.querySelectorAll('.error-tip').forEach(tip => tip.classList.remove('show'));
+  document.querySelectorAll('.form-input').forEach(input => input.classList.remove('error'));
+  
+  editingId = id || null;
+  document.getElementById('modalTitle').textContent = id ? '编辑曲目' : '添加曲目';
+  const t = id ? tracks.find(x=>x.id===id) : {};
+  ['name','artist','bpm','genre','mood','inst','note'].forEach(k => {
+    const el = document.getElementById('f-'+k);
+    el.value = t ? (t[k] || '') : '';
+  });
+  document.getElementById('modalBg').classList.add('open');
+  document.getElementById('f-name').focus();
+}
+
+function editTrack(id) { openModal(id); }
+
+function closeModal() { 
+  // 关闭时清除验证提示
+  document.querySelectorAll('.error-tip').forEach(tip => tip.classList.remove('show'));
+  document.querySelectorAll('.form-input').forEach(input => input.classList.remove('error'));
+  document.getElementById('modalBg').classList.remove('open'); 
+}
+
+function closeModalBg(e) { if (e.target.id === 'modalBg') closeModal(); }
+
+function saveTrack() {
+  // 完善表单验证
+  const nameEl = document.getElementById('f-name');
+  const artistEl = document.getElementById('f-artist');
+  const name = nameEl.value.trim();
+  const artist = artistEl.value.trim();
+  let isValid = true;
+
+  // 清空之前的验证提示
+  document.querySelectorAll('.error-tip').forEach(tip => tip.classList.remove('show'));
+  document.querySelectorAll('.form-input').forEach(input => input.classList.remove('error'));
+
+  if (!name) {
+    nameEl.classList.add('error');
+    document.getElementById('tip-name').classList.add('show');
+    nameEl.focus();
+    isValid = false;
+  }
+  
+  if (!artist) {
+    artistEl.classList.add('error');
+    document.getElementById('tip-artist').classList.add('show');
+    if (isValid) artistEl.focus();
+    isValid = false;
+  }
+
+  if (!isValid) return;
+
+  const data = {
+    name, 
+    artist: artist,
+    bpm: document.getElementById('f-bpm').value ? parseInt(document.getElementById('f-bpm').value) : null,
+    genre: document.getElementById('f-genre').value.trim(),
+    mood: document.getElementById('f-mood').value.trim(),
+    inst: document.getElementById('f-inst').value.trim(),
+    note: document.getElementById('f-note').value.trim(),
+    fav: false
+  };
+  
+  if (editingId) {
+    const idx = tracks.findIndex(t=>t.id===editingId);
+    if (idx > -1) { 
+      data.id = editingId; 
+      data.fav = tracks[idx].fav; // 保留收藏状态
+      tracks[idx] = data; 
+    }
+  } else {
+    data.id = Date.now();
+    tracks.push(data);
+  }
+  
+  save(); 
+  closeModal(); 
+  renderTracks();
+}
+
+function deleteTrack(id, e) {
+  e.stopPropagation();
+  // 确认删除
+  if (confirm('确定要删除这首曲目吗？')) {
+    tracks = tracks.filter(t=>t.id!==id);
+    save(); 
+    renderTracks();
+  }
+}
+
+// 页面加载完成后渲染（确保DOM加载完毕）
+document.addEventListener('DOMContentLoaded', function() {
+  renderTracks();
+});
+</script>
+</body>
+</html>
